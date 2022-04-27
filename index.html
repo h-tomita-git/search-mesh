@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>地域メッシュ検索</title>
+    <meta charset="utf-8" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css"
+      integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
+      crossorigin=""
+    />
+    <link rel="stylesheet" type="text/css" href="map.css" />
+    <script
+      src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"
+      integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew=="
+      crossorigin=""
+    ></script>
+  </head>
+  <body>
+    <div id="text_area">
+      <div class="func_wrapper">
+        <div class="func_title">緯度経度検索</div>
+        <input
+          type="text"
+          id="latlng_input"
+          placeholder="35.658577, 139.745451"
+        />
+        <div class="button_wrapper">
+          <input
+            type="button"
+            id="remove_search_button"
+            onclick="removeSearch()"
+            value="クリア"
+          />
+          <input
+            type="button"
+            id="search_button"
+            onclick="zoomToPoint()"
+            value="検索"
+          />
+        </div>
+      </div>
+      <div class="func_wrapper">
+        <div class="func_title">地域メッシュリスト</div>
+        <div id="table_header">
+          <select id="select_hyphen">
+            <option>"-" なし</option>
+            <option>"-" あり</option>
+          </select>
+          <div class="button_wrapper">
+            <input
+              type="button"
+              id="clear_button"
+              onclick="clearTable()"
+              value="クリア"
+            />
+            <input
+              type="button"
+              id="copy_button"
+              onclick="copyMeshList()"
+              value="コピー"
+            />
+          </div>
+        </div>
+        <div id="table_wrapper">
+          <table id="list_table"></table>
+        </div>
+      </div>
+    </div>
+    <div id="map_area"></div>
+    <script type="text/javascript" src="map.js"></script>
+  </body>
+</html>
