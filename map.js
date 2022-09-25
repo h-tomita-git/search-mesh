@@ -235,8 +235,8 @@ function insertTable(meshCode) {
   let tgtCell = meshTable.rows[inputCellIndex].cells[0];
   // ハイフン有無の選択状態を取得
   let hyphen_selection = document.getElementById("select_hyphen").value;
-  if (hyphen_selection.includes("あり")) {
-    // ありの場合、メッシュコードにハイフンを付与
+  if (hyphen_selection.includes("-")) {
+    // -ありの場合、メッシュコードにハイフンを付与
     meshCode = addHyphen(meshCode);
   }
   // メッシュコードを記入
@@ -560,7 +560,7 @@ function changeMeshHyphen(hyphen_selection) {
     // 元のテキストを取得
     let original_text = row.cells[0].innerText;
     // ハイフンありにした場合
-    if (hyphen_selection.includes("あり")) {
+    if (hyphen_selection.includes("-")) {
       // 元のテキストにハイフンがない場合のみ付与処理
       if (!original_text.includes("-")) {
         // ハイフン付きのメッシュコードを取得し、置き換え
