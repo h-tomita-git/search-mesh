@@ -28,13 +28,11 @@
         <div class="button_wrapper">
           <input
             type="button"
-            id="remove_search_button"
             onclick="removeSearch()"
             value="クリア"
           />
           <input
             type="button"
-            id="search_button"
             onclick="zoomToPoint()"
             value="検索"
           />
@@ -47,23 +45,39 @@
             <option>nnnnnnnn</option>
             <option>nnnn-nn-nn</option>
           </select>
+          <input
+              type="button"
+              onclick="sortTable('asc')"
+              value="▲"
+            />
+            <input
+              type="button"
+              onclick="sortTable('desc')"
+              value="▼"
+            />
           <div class="button_wrapper">
             <input
               type="button"
-              id="clear_button"
               onclick="clearTable()"
               value="クリア"
             />
             <input
               type="button"
-              id="copy_button"
+              onclick="pasteMeshList()"
+              value="貼り付け"
+            />
+            <input
+              type="button"
               onclick="copyMeshList()"
               value="コピー"
             />
           </div>
         </div>
-        <div id="table_wrapper">
-          <table id="list_table"></table>
+        <div id="list_wrapper">
+          <div id="table_wrapper">
+            <table id="list_table"></table>
+          </div>
+          <div id="selected_mesh_count"></div>
         </div>
       </div>
     </div>

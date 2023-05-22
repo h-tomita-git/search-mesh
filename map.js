@@ -8,10 +8,19 @@ const SIZE_SECOND_LON = 7.5 / 60;
 const SIZE_THIRD_LAT = 30 / 60 / 60;
 const SIZE_THIRD_LON = 45 / 60 / 60;
 
-const MIN_MESH_LAT = 30;
-const MAX_MESH_LAT = 68;
-const MIN_MESH_LON = 22;
-const MAX_MESH_LON = 53;
+const MIN_LAT = 20;
+const MIN_LON = 122;
+const MAX_LAT = 45;
+const MAX_LON = 154;
+
+const MESH_MINMAX_LIST = [
+  [22, 53],
+  [30, 68],
+  [0, 7],
+  [0, 7],
+  [0, 9],
+  [0, 9]
+]
 
 const TABLE_MIN_ROW = 5;
 
@@ -27,22 +36,22 @@ const meshSizeArray = [
 ];
 
 // レイヤーグループを準備
-var layerGroup = {};
+let layerGroup = {};
 
 // 検索時のマーカーを準備
-var searchMarker;
+let searchMarker;
 
 // メッシュのテキスト表示
-var textVisiblity;
+let textVisiblity;
 
 //////////////////////////////////
-// 関数定義
+// ズームレベル・メッシュサイズ関数定義
 //////////////////////////////////
 
 // ズームレベルから表示するメッシュサイズを取得
-function getMeshSize() {
-  var zoomSize = map.getZoom();
-  var meshSize;
+function getMeshSizeLevel() {
+  let zoomSize = map.getZoom();
+  let meshSize;
   if (zoomSize < 10) {
     meshSize = 1;
   } else if (zoomSize < 13) {
@@ -53,9 +62,36 @@ function getMeshSize() {
   return meshSize;
 }
 
+// メッシュコードからメッシュサイズを取得
+function getMeshSizeCode(meshCode) {
+  if (meshCode.length === 4) {
+    meshSize = 1;
+  } else if (meshCode.length === 6) {
+    meshSize = 2;
+  } else if (meshCode.length === 8) {
+    meshSize = 3;
+  } else {
+    meshSize = null;
+  }
+  return meshSize;
+}
+
+// メッシュサイズからズームレベルを算出
+function getMeshLevel(meshSize) {
+  let zoomSize = 9;
+  if (meshSize === 1) {
+    zoomSize = 9;
+  } else if (meshSize === 2) {
+    zoomSize = 12;
+  } else if (meshSize === 3) {
+    zoomSize = 14;
+  }
+  return zoomSize;
+}
+
 // ズームレベルからメッシュ内のテキスト表示／非表示を取得
 function setTextVisiblity() {
-  var meshSize = getMeshSize();
+  var meshSize = getMeshSizeLevel();
   var zoomSize = map.getZoom();
   if (meshSize == 1 && zoomSize < 7) {
     textVisiblity = false;
@@ -66,8 +102,12 @@ function setTextVisiblity() {
   }
 }
 
-// メッシュコード配列取得
-function getMeshArray(size, tgtLat, tgtLon) {
+//////////////////////////////////
+// メッシュコード配列関数
+//////////////////////////////////
+
+// 緯度経度からメッシュコード配列取得
+function getMeshArrayLatlon(size, tgtLat, tgtLon) {
   var meshArray = [];
   var tempLatCode;
   var tempLonCode;
@@ -94,27 +134,31 @@ function getMeshArray(size, tgtLat, tgtLon) {
   return meshArray;
 }
 
+// メッシュコードからメッシュコード配列を取得
+function getMeshArrayCode(meshCode) {
+  const meshLengthList = [2, 2, 1, 1, 1, 1];
+  let tmpMeshCode = meshCode;
+  let loopCounter = 0;
+  let meshArray = [];
+  // メッシュコードを配列に変換
+  while (tmpMeshCode.length > 0) {
+    tmpMeshSplit = tmpMeshCode.slice(0, meshLengthList[loopCounter]);
+    meshArray.push(tmpMeshSplit);
+    tmpMeshCode = tmpMeshCode.replace(tmpMeshSplit, "");
+    loopCounter += 1;
+  }
+  return meshArray;
+}
+
+//////////////////////////////////
+// 緯度経度取得関数
+//////////////////////////////////
+
 // メッシュの一辺の緯度経度サイズ配列取得
 function getMeshLatlngUnit(size) {
   var tgtSizeIndex = size - 1;
   var unitSizeArray = meshSizeArray[tgtSizeIndex];
   return unitSizeArray;
-}
-
-// 日本のメッシュチェック
-function checkMeshInside(meshCode) {
-  var firstMeshLat = parseInt(meshCode.substr(0, 2), 10);
-  var firstMeshLon = parseInt(meshCode.substr(2, 2), 10);
-  if (
-    MIN_MESH_LAT <= firstMeshLat &&
-    firstMeshLat <= MAX_MESH_LAT &&
-    MIN_MESH_LON <= firstMeshLon &&
-    firstMeshLon <= MAX_MESH_LON
-  ) {
-    return true;
-  } else {
-    return false;
-  }
 }
 
 // メッシュの左下緯度経度取得
@@ -135,6 +179,48 @@ function getMeshMinLatlng(meshArray) {
   }
   return [minLat, minLon];
 }
+
+//////////////////////////////////
+// メッシュチェック関数
+//////////////////////////////////
+
+// 日本のメッシュチェック
+function checkLatlonInside(minLat, minLon, maxLat, maxLon) {
+  if (
+    MIN_LAT <= minLat &&
+    MIN_LON <= minLon &&
+    maxLat <= MAX_LAT &&
+    maxLon <= MAX_LON
+  ) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+// メッシュコードの不正をチェック
+function checkMeshCode(meshArrayList) {
+  // 配列をチェック
+  for (let i = 0; i < meshArrayList.length; i++) {
+    // メッシュコードが数値でない場合は返却
+    if (isNaN(meshArrayList[i])) {
+      return false;
+    }
+    // メッシュコードが範囲内かどうかチェック
+    tmpMeshInt = Number(meshArrayList[i]);
+    if (
+      !(tmpMeshInt >= MESH_MINMAX_LIST[i][0] &&
+        tmpMeshInt <= MESH_MINMAX_LIST[i][1])
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+//////////////////////////////////
+// スタイル設定関数
+//////////////////////////////////
 
 // メッシュスタイル設定
 function setMeshStyle(layer, selectedFlg) {
@@ -183,6 +269,32 @@ function setMeshTips(layer, meshCode, mouseOnFlg) {
   return layer;
 }
 
+//////////////////////////////////
+// テーブル操作関数
+//////////////////////////////////
+
+// テーブル内のメッシュ数をカウント
+function countTableMeshNum() {
+  let meshTable = document.getElementById("list_table");
+  let currRowNum = meshTable.rows.length;
+  let countMeshNum = 0;
+  for (let i = 0; i < currRowNum; i++) {
+    // テーブル内のメッシュ数を加算
+    if (meshTable.rows[i].cells[0].innerText.length > 0) {
+      countMeshNum += 1;
+    }
+  }
+  return countMeshNum;
+}
+
+// 選択したメッシュ数をテーブルの下部に表示
+function displayMeshNum() {
+  // 選択したメッシュ数をカウント
+  let countMeshNum = countTableMeshNum();
+  let meshNumDisplay = document.getElementById("selected_mesh_count");
+  meshNumDisplay.innerText = "選択済みメッシュ数: " + String(countMeshNum);
+}
+
 // 選択したメッシュのテーブル行番号を取得
 function getMeshRow(meshCode) {
   let meshTable = document.getElementById("list_table");
@@ -190,7 +302,7 @@ function getMeshRow(meshCode) {
   for (let i = 0; i < currRowNum; i++) {
     // テーブル内のメッシュからハイフンを除去して取得
     let cellText = meshTable.rows[i].cells[0].innerText.replace(/-/g, "");
-    // alert(cellText);
+    // 該当するメッシュの場合、行番号を返却
     if (cellText == meshCode) {
       return i;
     }
@@ -205,7 +317,8 @@ function insertRowToTable(meshTable) {
   // クリックイベントを付与
   insertRow.addEventListener("click", function (e) {
     // メッシュにズーム
-    zoomToMesh(e.currentTarget);
+    let tgtMeshCode = e.currentTarget.innerText.replace(/-/g, "");
+    zoomToMesh(tgtMeshCode);
   });
   return meshTable;
 }
@@ -241,6 +354,8 @@ function insertTable(meshCode) {
   }
   // メッシュコードを記入
   tgtCell.innerText = meshCode;
+  // 選択メッシュ数を表示
+  displayMeshNum();
   // マウスオンを設定
   tgtCell.addEventListener("mouseover", function (e) {
     e.target.style.background = "#c0c0c0";
@@ -252,29 +367,66 @@ function insertTable(meshCode) {
 
 // 選択したメッシュをテーブルから削除
 function removeTable(meshRow) {
-  var meshTable = document.getElementById("list_table");
+  let meshTable = document.getElementById("list_table");
   // 対象行を削除
   meshTable.deleteRow(meshRow);
   // 削除した結果、最小行数未満の場合は、末尾に行追加
   let currRowNum = meshTable.rows.length;
-  console.log(currRowNum);
   if (currRowNum < TABLE_MIN_ROW) {
-    console.log("add row");
     let lastRow = meshTable.insertRow(-1);
-    console.log(meshTable.rows.length);
     lastRow.insertCell(-1);
     // クリックイベントを追加
     lastRow.addEventListener("click", function (e) {
       // メッシュにズーム
-      zoomToMesh(e.currentTarget);
+      let tgtMeshCode = e.currentTarget.innerText.replace(/-/g, "");
+      zoomToMesh(tgtMeshCode);
     });
   }
 }
 
+// メッシュリストを並べ替え
+function sortTable(sortOrder) {
+  let meshTable = document.getElementById("list_table");
+  let selectedRowNum = meshTable.rows.length;
+  let selectedArray = [];
+  for (let i = 0; i < selectedRowNum; i++) {
+    // テーブル内のメッシュを取得
+    let currRowMesh = meshTable.rows[i].cells[0].innerText;
+    if (currRowMesh != "") {
+      selectedArray.push(currRowMesh);
+    }
+  }
+  let selectedArrayCount = selectedArray.length;
+  if (selectedArrayCount === 0){
+    return;
+  }
+  // 並べ替え
+  if (sortOrder === "asc") {
+    selectedArray.sort();
+  } else if (sortOrder === "desc") {
+    selectedArray.reverse();
+  } else {
+    return;
+  }
+  for (let n = 0; n < selectedRowNum; n++) {
+    // 空白行は配列に入っていないため、配列の要素数まで
+    if (n >= selectedArrayCount) {
+      return;
+    }
+    // 並べ替えた順にメッシュコードを格納
+    let currRow = meshTable.rows[n].cells[0];
+    currRow.innerText = selectedArray[n];
+  }
+}
+
+//////////////////////////////////
+// マップレイヤー関数
+//////////////////////////////////
+
 // メッシュレイヤー表示
 function setMeshLayer() {
   // ズームレベルから表示するメッシュサイズを取得
-  var meshSize = getMeshSize();
+  var meshSize = getMeshSizeLevel();
 
   // ズームレベルからメッシュ内のテキスト表示／非表示を設定
   setTextVisiblity();
@@ -289,7 +441,7 @@ function setMeshLayer() {
   var westLatlng = map.getBounds().getWest();
 
   // 南西のメッシュコードを取得
-  var minMeshArray = getMeshArray(meshSize, southLatlng, westLatlng);
+  var minMeshArray = getMeshArrayLatlon(meshSize, southLatlng, westLatlng);
 
   // 南西のメッシュコードの最小緯度経度を取得
   var minMeshLatlng = getMeshMinLatlng(minMeshArray);
@@ -318,13 +470,13 @@ function setMeshLayer() {
       var currMeshCenterLat = currMeshMinLat + unitSizeArray[0] / 2;
       var currMeshCenterLon = currMeshMinLon + unitSizeArray[1] / 2;
       // 現在のメッシュコードを取得
-      var currMeshCode = getMeshArray(
+      var currMeshCode = getMeshArrayLatlon(
         meshSize,
         currMeshCenterLat,
         currMeshCenterLon
       ).join("");
       // 日本のメッシュチェック
-      if (checkMeshInside(currMeshCode)) {
+      if (checkLatlonInside(currMeshMinLat, currMeshMinLon, currMeshMaxLat, currMeshMaxLon)) {
         // メッシュポリゴン生成
         var meshPolygon = new L.polygon([
           [currMeshMinLat, currMeshMinLon],
@@ -422,6 +574,10 @@ function removeSearchMarker() {
   }
 }
 
+//////////////////////////////////
+// ボタン操作関数
+//////////////////////////////////
+
 // 検索
 function zoomToPoint() {
   // 入力値を取得
@@ -452,43 +608,21 @@ function removeSearch() {
 }
 
 // メッシュへジャンプ
-function zoomToMesh(e) {
-  // 選択したメッシュコードからハイフンを除去して取得
-  let meshCode = e.innerText.replace(/-/g, "");
+function zoomToMesh(meshCode) {
   // メッシュのサイズを算出
-  let meshSize;
-  if (meshCode.length === 4) {
-    meshSize = 1;
-  } else if (meshCode.length === 6) {
-    meshSize = 2;
-  } else if (meshCode.length === 8) {
-    meshSize = 3;
-  } else {
+  let meshSize = getMeshSizeCode(meshCode);
+  if (meshSize === null) {
     return;
   }
   // メッシュ配列を作成
-  let meshArray = [meshCode.substr(0, 2), meshCode.substr(2, 2)];
-  if (meshSize >= 2) {
-    meshArray.push(meshCode.substr(4, 1), meshCode.substr(5, 1));
-  }
-  if (meshSize === 3) {
-    meshArray.push(meshCode.substr(6, 1), meshCode.substr(7, 1));
-  }
-
+  let meshArray = getMeshArrayCode(meshCode);
   // メッシュの左下緯度経度を取得
-  let MinLatlngArray = getMeshMinLatlng(meshArray);
+  let minLatlngArray = getMeshMinLatlng(meshArray);
   // メッシュサイズに応じて、中心地点を算出
-  let centerLat = MinLatlngArray[0] + meshSizeArray[meshSize - 1][0] / 2;
-  let centerLon = MinLatlngArray[1] + meshSizeArray[meshSize - 1][1] / 2;
+  let centerLat = minLatlngArray[0] + meshSizeArray[meshSize - 1][0] / 2;
+  let centerLon = minLatlngArray[1] + meshSizeArray[meshSize - 1][1] / 2;
   // 対象メッシュを表示
-  let zoomSize;
-  if (meshSize === 1) {
-    zoomSize = 9;
-  } else if (meshSize === 2) {
-    zoomSize = 12;
-  } else if (meshSize === 3) {
-    zoomSize = 14;
-  }
+  let zoomSize = getMeshLevel(meshSize);
   map.setView([centerLat, centerLon], zoomSize);
 }
 
@@ -507,6 +641,61 @@ function copyMeshList() {
   }
   // テキストをクリップボードへコピー
   navigator.clipboard.writeText(tableTexts);
+}
+
+// メッシュ貼り付け
+function pasteMeshList() {
+  // 貼り付けたメッシュのうち、最初のメッシュを保持（中心へジャンプのため）
+  let pasteFirstMeshCode = null;
+  // クリップボードの値を取得
+  navigator.clipboard.readText()
+  .then(
+    function(clipText){
+      // 貼り付けたテキストを¥r¥nで分割
+      splitRows = clipText.split(String.fromCharCode(10));
+      // 分割後のアイテムが一つの場合、¥nのみで再度分割
+      if (splitRows.length === 1) {
+        splitRows = clipText.split(String.fromCharCode(13));
+      }
+      // タブで分割
+      for (let i = 0; i < splitRows.length; i++){
+        splitRows[i] = splitRows[i].replace(String.fromCharCode(13), "").split(String.fromCharCode(9));
+      }
+      // メッシュ不正リストを作成
+      let meshErrorArray = [];
+      for (let i = 0; i < splitRows.length; i++){
+        let currMeshCode = splitRows[i][0].replace(/-/g, "");
+        // メッシュコードに該当するもののみ追加
+        if (currMeshCode.length === 4 || currMeshCode.length === 6 || currMeshCode.length === 8) {
+          // メッシュコード配列を取得
+          let currMeshArray = getMeshArrayCode(currMeshCode);
+          // メッシュコードが正しい場合のみテーブルに追加
+          if (checkMeshCode(currMeshArray)) {
+            // メッシュコードがすでにテーブルに存在するか確認
+            if (getMeshRow(currMeshCode) === null) {
+              // 存在しない場合のみ追加
+              insertTable(currMeshCode);
+              // 貼り付けた値の先頭の場合、値を保持
+              if (pasteFirstMeshCode === null) {
+                pasteFirstMeshCode = currMeshCode;
+              }
+            }
+          } else {
+            meshErrorArray.push(splitRows[i][0]);
+          }
+        } else {
+          meshErrorArray.push(splitRows[i][0]);
+        }
+      }
+      if (pasteFirstMeshCode != null) {
+        // 貼り付けた先頭のメッシュを表示
+        zoomToMesh(pasteFirstMeshCode);
+      }
+      if (meshErrorArray.length > 0) {
+        alert("貼り付けメッシュコード不正: " + meshErrorArray);
+      }
+    }
+  );
 }
 
 // テーブルクリア
@@ -534,6 +723,8 @@ function clearTable() {
       }
     }
   });
+  // 選択したメッシュ数の表示を変更
+  displayMeshNum();
 }
 
 // メッシュコードにハイフン付与
@@ -591,6 +782,9 @@ L.tileLayer("https://{s}.tile.osm.org/{z}/{x}/{y}.png", {
 
 // メッシュレイヤー表示
 setMeshLayer();
+
+// 選択したメッシュ数を表示
+displayMeshNum();
 
 //////////////////////////////////
 // イベント定義
