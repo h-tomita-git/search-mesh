@@ -382,6 +382,8 @@ function removeTable(meshRow) {
       zoomToMesh(tgtMeshCode);
     });
   }
+  // 選択したメッシュ数を表示
+  displayMeshNum();
 }
 
 // メッシュリストを並べ替え
@@ -659,11 +661,15 @@ function pasteMeshList() {
       }
       // タブで分割
       for (let i = 0; i < splitRows.length; i++){
-        splitRows[i] = splitRows[i].replace(String.fromCharCode(13), "").split(String.fromCharCode(9));
+        splitRows[i] = splitRows[i].replace(String.fromCharCode(13), "").replace(String.fromCharCode(10), "").split(String.fromCharCode(9));
       }
       // メッシュ不正リストを作成
       let meshErrorArray = [];
       for (let i = 0; i < splitRows.length; i++){
+        if (splitRows[i][0] == "") {
+          continue;
+        }
+        // ハイフンを除去
         let currMeshCode = splitRows[i][0].replace(/-/g, "");
         // メッシュコードに該当するもののみ追加
         if (currMeshCode.length === 4 || currMeshCode.length === 6 || currMeshCode.length === 8) {
